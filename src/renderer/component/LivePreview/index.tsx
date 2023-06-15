@@ -3,7 +3,7 @@ import RtcEngineContext, { IAppContext } from "../../context/rtcEngineContext"
 import styles from './livePreview.scss'
 import { getResourcePath } from '../../utils/index'
 import { DownOutlined,UpOutlined } from '@ant-design/icons'
-import { message } from 'antd'
+import { message, Dropdown, Menu } from 'antd'
 import CameraModal from '../CameraModal'
 import Config from '../../config/agora.config'
 import { 
@@ -37,7 +37,6 @@ const optConfig = [
     imgUrl: getResourcePath('virtual.png')
   }
 ]
-
 interface IDeviceCapacity {
   width: number,
   height: number,
@@ -72,6 +71,8 @@ const LivePreview: React.FC = () => {
   const [isPreview, setPreviewState] = useState(false)
   const [isFirstCameraOpen, setFirstCameraState] = useState(false)
   const [isFirstScreenOpen, setFirstScreenState] = useState(false)
+  const [isCaptureMenuOpen, setCaptureMenuOpen] = useState(false)
+  const [isMediaMenuOpen, setMediaMenuOpen] = useState(false)
   const videoRef = useRef(null)
   const {rtcEngine, isAppIdExist, appId} = useContext(RtcEngineContext) as IAppContext
 
@@ -307,7 +308,6 @@ const LivePreview: React.FC = () => {
       setIsScreenModalOpen(true)
     }
     if (e.target.id === 'media') {
-
     }
     if (e.target.id === 'virtual') {
 
@@ -325,6 +325,34 @@ const LivePreview: React.FC = () => {
     setIsCameraModalOpen(false)
   }
 
+  const captureMenuOpenChange = (value) => {
+    console.log('----handleOnOpenChange value: ',value)
+    setCaptureMenuOpen(value)
+  }
+
+  const mediaMenuOpenChange = (value) => {
+    console.log('----mediaMenuOpenChange value: ',value)
+    setMediaMenuOpen(value)
+  }
+
+  const captureMenu = (
+    <Menu items={[
+      {key: 'winCapture', label: '窗口捕获'},
+      {key: 'fullscreen', label: '全屏捕获'},
+      {key: 'areaCapture', label: '区域捕获'},
+    ]}/>
+  )
+
+  const mediaMenu = (
+    <Menu items={
+      [
+        {key: 'staticPic', label: '静态图片(jpg/png)'},
+        {key: 'gifPic', label: '动态图片(gif)'},
+        {key: 'video', label: '视频(推荐使用声网mpk播放)'}
+      ]
+    }/>
+  )
+
   const renderOptListItem = (item) => {
     if (item.id === 'camera' || item.id === 'virtual') {
       return (
@@ -333,16 +361,40 @@ const LivePreview: React.FC = () => {
           <span style={{pointerEvents: 'none'}}>{item.title}</span>
         </div>
       )
-    } else {
+    } else if (item.id === 'capture') {
       return (
-        <div key={item.id} id={item.id} className={styles.item} onClick={handleOptClick}>
+        <div key={item.id} id={item.id} className={styles.item}>
           <img src={`file://${item.imgUrl}`} alt="" style={{pointerEvents: 'none'}}/>
-          <div className={styles.desc} style={{pointerEvents: 'none'}}>
-            <span className={styles.title}>{item.title}</span>
-            <DownOutlined className={styles.arrow}/>
+          <div className={styles.desc}>
+            <Dropdown
+              trigger={['hover']}
+              onOpenChange={captureMenuOpenChange}
+              overlay={captureMenu}>
+              <div>
+                <span className={styles.title}>{item.title}</span>
+                {isCaptureMenuOpen ? <UpOutlined className={styles.arrow}/> : <DownOutlined className={styles.arrow}/>}
+              </div>
+            </Dropdown>
           </div>
         </div>
-      )
+      ) 
+    } else if (item.id === 'media') {
+      return (
+        <div key={item.id} id={item.id} className={styles.item}>
+          <img src={`file://${item.imgUrl}`} alt="" style={{pointerEvents: 'none'}}/>
+          <div className={styles.desc}>
+            <Dropdown
+              trigger={['hover']}
+              onOpenChange={mediaMenuOpenChange}
+              overlay={mediaMenu}>
+              <div>
+                <span className={styles.title}>{item.title}</span>
+                {isMediaMenuOpen ? <UpOutlined className={styles.arrow}/> : <DownOutlined className={styles.arrow}/>}
+              </div>
+            </Dropdown>
+          </div>
+        </div>
+      ) 
     }
   }
   
