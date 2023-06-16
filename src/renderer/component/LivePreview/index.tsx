@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useContext } from "react"
+import { ipcRenderer } from 'electron'
 import RtcEngineContext, { IAppContext } from "../../context/rtcEngineContext"
 import styles from './livePreview.scss'
 import { getResourcePath } from '../../utils/index'
@@ -84,6 +85,17 @@ const LivePreview: React.FC = () => {
       enumerateDevices()
     }
   },[isAppIdExist, appId])
+
+  useEffect(() => {
+    registerIpcRenderEvent()
+  },[])
+
+  const registerIpcRenderEvent = () => {
+    ipcRenderer.on('get-file-path', (event, args) => {
+      console.log('---------getFilePath: ',event)
+      console.log('---------getFilePath path: ',args)
+    })
+  }
 
   const enumerateDevices = () => {
     const videoDevices = rtcEngine?.getVideoDeviceManager().enumerateVideoDevices()
@@ -335,8 +347,26 @@ const LivePreview: React.FC = () => {
     setMediaMenuOpen(value)
   }
 
+  const handleCaptureMenuClick = (e) => {
+    console.log('-----handleCaptureMenuClick key: ',e.key)
+    if (!isAppIdExist) {
+      message.info('请输入正确App ID')
+      return
+    }
+  }
+
+  const handleMediaMenuClick = (e) => {
+    console.log('-----handleMediaMenuClick key: ',e.key)
+    setMediaMenuOpen(false)
+    if (!isAppIdExist) {
+      message.info('请输入正确App ID')
+      return
+    }
+    ipcRenderer.send('open-select-file-dialog', e.key)
+  }
+
   const captureMenu = (
-    <Menu items={[
+    <Menu onClick={handleCaptureMenuClick} items={[
       {key: 'winCapture', label: '窗口捕获'},
       {key: 'fullscreen', label: '全屏捕获'},
       {key: 'areaCapture', label: '区域捕获'},
@@ -344,10 +374,10 @@ const LivePreview: React.FC = () => {
   )
 
   const mediaMenu = (
-    <Menu items={
+    <Menu onClick={handleMediaMenuClick} items={
       [
-        {key: 'staticPic', label: '静态图片(jpg/png)'},
-        {key: 'gifPic', label: '动态图片(gif)'},
+        {key: 'image', label: '静态图片(jpg/png)'},
+        {key: 'gif', label: '动态图片(gif)'},
         {key: 'video', label: '视频(推荐使用声网mpk播放)'}
       ]
     }/>
