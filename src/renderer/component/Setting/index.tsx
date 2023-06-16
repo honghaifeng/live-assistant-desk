@@ -38,10 +38,17 @@ const Setting: React.FC = () => {
         logConfig: { filePath: Config.SDKLogPath },
         channelProfile: ChannelProfileType.ChannelProfileLiveBroadcasting,
       })
+      let result = rtcEngine?.enableExtension(
+        'agora_video_filters_segmentation',
+        'portrait_segmentation',
+        true
+      )
+      console.log('init extension result: ',result)
       rtcEngine?.registerEventHandler(EventHandles)
       if (ret === 0) {
         updateAppStatus(true)
       } else {
+        console.error('init engine failed')
         updateAppStatus(false)
       } 
       console.log('----ret: ',ret)

@@ -72,7 +72,6 @@ const CameraModal: React.FC<IProps> = ({isOpen, deviceIndex, capacityIndex, devi
     onOk(confirmData)
   }
 
-
   return (
     <Modal
       title='添加摄像头'

@@ -6,6 +6,7 @@ import { getResourcePath } from '../../utils/index'
 import { DownOutlined,UpOutlined } from '@ant-design/icons'
 import { message, Dropdown, Menu } from 'antd'
 import CameraModal from '../CameraModal'
+import VirtualBackgroundModal from '../VirtualBackgroundModal'
 import Config from '../../config/agora.config'
 import { 
   CameraCapturerConfiguration,
@@ -64,6 +65,7 @@ const LivePreview: React.FC = () => {
   const [isHorizontal, setIsHorizontal] = useState(true)
   const [isVertical, setIsVertical] = useState(false)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
+  const [isVirtualBgModalOpen, setVirtualBgModalOpen] = useState(false)
   const [isScreenModalOpen, setIsScreenModalOpen] = useState(false)
   const [devices, setDevices] = useState<IDevice[]>([])
   const [sources, setSources] = useState<TranscodingVideoStream[]>([])
@@ -322,7 +324,7 @@ const LivePreview: React.FC = () => {
     if (e.target.id === 'media') {
     }
     if (e.target.id === 'virtual') {
-
+      setVirtualBgModalOpen(true)
     }
   }
 
@@ -335,6 +337,10 @@ const LivePreview: React.FC = () => {
 
   const handleCameraModalCancal = () => {
     setIsCameraModalOpen(false)
+  }
+
+  const handleVirtualBgModalCancal = () => {
+    setVirtualBgModalOpen(false)
   }
 
   const captureMenuOpenChange = (value) => {
@@ -459,6 +465,11 @@ const LivePreview: React.FC = () => {
           capacityIndex={capacityIndex} 
           devices={devices} 
           onCancel={handleCameraModalCancal}/>
+      )}
+      {isVirtualBgModalOpen && (
+        <VirtualBackgroundModal
+          onCancel={handleVirtualBgModalCancal} 
+          isOpen={isVirtualBgModalOpen} />
       )}
     </div>
   )
