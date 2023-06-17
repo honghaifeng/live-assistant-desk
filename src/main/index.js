@@ -65,7 +65,7 @@ const registerIpcMainEvent = () => {
     let filters = [];
     if (args === 'image') {
       filters = [
-        { name: 'Images', extensions: ['jpg', 'png'] },
+        { name: 'Images', extensions: ['jpg', 'png', 'jpeg'] },
       ];
     } else if (args === 'gif') {
       filters = [

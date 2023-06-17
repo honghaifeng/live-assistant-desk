@@ -13,7 +13,11 @@ import {
   VideoSourceType,
   VideoMirrorModeType, 
   RenderModeType,
-  TranscodingVideoStream  
+  TranscodingVideoStream,
+  IMediaPlayer,
+  IMediaPlayerSourceObserver,
+  MediaPlayerState,
+  MediaPlayerError
 } from 'agora-electron-sdk'
 
 
@@ -63,29 +67,28 @@ interface IScreenInfo {
 const LivePreview: React.FC = () => {
   console.log('----render LivePreview')
   const [isHorizontal, setIsHorizontal] = useState(true)
-  const [isVertical, setIsVertical] = useState(false)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isVirtualBgModalOpen, setVirtualBgModalOpen] = useState(false)
   const [enableGreenScreen, setEnableGreenScreen] = useState(false)
-  const [isScreenModalOpen, setIsScreenModalOpen] = useState(false)
   const [devices, setDevices] = useState<IDevice[]>([])
   const [sources, setSources] = useState<TranscodingVideoStream[]>([])
   const [deviceIndex, setDeviceIndex] = useState(0)
   const [capacityIndex, setCapacityIndex] = useState(0)
-  const [isPreview, setPreviewState] = useState(false)
-  const [isFirstCameraOpen, setFirstCameraState] = useState(false)
   const [isFirstScreenOpen, setFirstScreenState] = useState(false)
   const [isCaptureMenuOpen, setCaptureMenuOpen] = useState(false)
   const [isMediaMenuOpen, setMediaMenuOpen] = useState(false)
   const videoRef = useRef(null)
+  const isPreview = useRef<boolean>(false)
+  const mediaPlayer = useRef<IMediaPlayer | null>(null)
   const {rtcEngine, isAppIdExist, appId} = useContext(RtcEngineContext) as IAppContext
-
+  const init_width = 600, init_height = 600
   useEffect(() => {
     if (isAppIdExist && appId.length > 0) {
       console.log('------Agora Engine init success')
       setDeviceIndex(0)
       setCapacityIndex(0)
       enumerateDevices()
+      createMediaPlayer()
     }
   },[isAppIdExist, appId])
 
@@ -93,10 +96,19 @@ const LivePreview: React.FC = () => {
     registerIpcRenderEvent()
   },[])
 
+  useEffect(() => {
+    if (sources.length > 0) {
+      console.log('transcoder sources change')
+      handlePreview()
+    }
+  },[sources])
+
   const registerIpcRenderEvent = () => {
     ipcRenderer.on('get-file-path', (event, args) => {
-      console.log('---------getFilePath: ',event)
-      console.log('---------getFilePath path: ',args)
+      console.log('---------getFilePath path: ',args.filePaths[0])
+      if (args.filePaths && args.filePaths.length > 0) {
+        handleAddMediaSource(args.filePaths[0], args.type)
+      }
     })
   }
 
@@ -126,17 +138,34 @@ const LivePreview: React.FC = () => {
           capacity: capacities,
         }
       })
-      newDevices.push({
-        deviceName: 'chenxmm',
-        deviceId: 'chensa13ycjsajjsh',
-        capacity: [
-          {width: 1330, height: 900, fps: 50, modifyFps: 50},
-          {width: 1980, height: 1330, fps: 150, modifyFps: 150}
-        ]
-      })
       console.log('----newDevices: ',newDevices)
       setDevices(newDevices)
     }
+  }
+
+  const MediaPlayerListener: IMediaPlayerSourceObserver = {
+    onPlayerSourceStateChanged(state: MediaPlayerState, ec: MediaPlayerError) {
+      console.log('onPlayerSourceStateChanged', 'state', state, 'ec', ec);
+      switch (state) {
+        case MediaPlayerState.PlayerStateIdle:
+          break
+        case MediaPlayerState.PlayerStateOpening:
+          break
+        case MediaPlayerState.PlayerStateOpenCompleted:
+          console.log('------state is PlayerStateOpenCompleted')
+          mediaPlayer.current?.play()
+          //this.setState({ open: true });
+          // Auto play on this case
+          //setOpenPlayer(true)
+          //player.current?.play()
+          break
+      }
+    }
+  }
+
+  const createMediaPlayer = () => {
+    mediaPlayer.current = rtcEngine?.createMediaPlayer()!
+    mediaPlayer.current.registerPlayerSourceObserver(MediaPlayerListener)
   }
 
   const handleAddCamera = (selectIndex, selectCapIndex) => {
@@ -154,47 +183,39 @@ const LivePreview: React.FC = () => {
       }
     }
     console.log('---configuration: ',configuration)
-    let type = isFirstCameraOpen ? VideoSourceType.VideoSourceCameraSecondary : VideoSourceType.VideoSourceCameraPrimary
+    let type = selectIndex > 0 ? VideoSourceType.VideoSourceCameraSecondary : VideoSourceType.VideoSourceCameraPrimary
     let ret = rtcEngine?.startCameraCapture(type, configuration)
     console.log('-----ret: ',ret)
     console.log('-----videoRef: ',videoRef.current)
-    // try {
-    //   rtcEngine?.destroyRendererByView(videoRef.current);
-    // } catch (e) {
-    //   console.error(e);
-    // }
-
-    if(!isFirstCameraOpen)
-    {
-      setFirstCameraState(type==VideoSourceType.VideoSourceCameraPrimary);
-    }
-      
-    // let newSrc:TranscodingVideoStream[] = []
-    // newSrc.push({
-    //   sourceType: type,
-    //   x: 0,
-    //   y: 0,
-    //   width: devices[selectIndex].capacity[selectCapIndex].width,
-    //   height: devices[selectIndex].capacity[selectCapIndex].height,
-    //   zOrder: 1,
-    //   alpha: 1
-    // })
-    // setSources(newSrc)
-    sources.push({
-      sourceType: type,
-      x: 0,
-      y: 0,
-      width: devices[selectIndex].capacity[selectCapIndex].width,
-      height: devices[selectIndex].capacity[selectCapIndex].height,
-      zOrder: 1,
-      alpha: 1
+    setSources((preSources) => {
+      let index = preSources.findIndex((item) => {
+        console.log('-----item: ',item)
+        return item.sourceType === type
+      })
+      console.log('------index: ',index)
+      if (index < 0) {
+        return [
+          ...preSources,
+          {
+            sourceType: type,
+            x: 0,
+            y: 0,
+            //width: devices[selectIndex].capacity[selectCapIndex].width,
+            //height: devices[selectIndex].capacity[selectCapIndex].height,
+            width: init_width,
+            height: init_height,
+            zOrder: 1,
+            alpha: 1
+          }
+        ]
+      } else {
+        handlePreview()
+        return preSources
+      }
     })
-
-    handlePreview();
   }
 
   const handleAddScreen = (data) =>{
-
     let type = isFirstScreenOpen ? VideoSourceType.VideoSourceScreenSecondary : VideoSourceType.VideoSourceScreenPrimary
     if(data.isDisplay)
     {
@@ -204,7 +225,7 @@ const LivePreview: React.FC = () => {
         ScreenCaptureParameters:{frameRate:15}
       }
       
-      let ret = rtcEngine?.startScreenCaptureBySourceType(type, config);
+      rtcEngine?.startScreenCaptureBySourceType(type, config);
     }
     else{
       let config = {
@@ -213,36 +234,84 @@ const LivePreview: React.FC = () => {
         ScreenCaptureParameters:{frameRate:15}
       }
 
-      let ret = rtcEngine?.startScreenCaptureBySourceType(type, config);
+      rtcEngine?.startScreenCaptureBySourceType(type, config);
     }
-
-    sources.push({
-      sourceType: type,
-      x: 0,
-      y: 0,
-      width: data.width,
-      height: data.length,
-      zOrder: 1,
-      alpha: 1
+    setSources((preSources) => {
+      return [
+        ...preSources,
+        {
+          sourceType: type,
+          x: 0,
+          y: 0,
+          width: 200,
+          height: 200,
+          zOrder: 1,
+          alpha: 1
+        }
+      ]
     })
-
-    handlePreview();
   }
 
-  const handleScreenModalOk = (data) => {
-    handleAddScreen(data)
-    setIsScreenModalOpen(false)
-  }
-
-  const handleScreenModalCancal = () => {
-    setIsScreenModalOpen(false)
+  const handleAddMediaSource = (srcUrl: string, type: string) => {
+    console.log('-----handleAddMediaSource srcUrl: ',srcUrl, 'type: ', type)
+    let sourceType
+    if (type === 'image') {
+      if(srcUrl.endsWith('.png')) {
+        sourceType = VideoSourceType.VideoSourceRtcImagePng
+      } else {
+        sourceType = VideoSourceType.VideoSourceRtcImageJpeg
+      }
+    } else if (type === 'gif') {
+      sourceType = VideoSourceType.VideoSourceRtcImageGif
+    } else if (type === 'video') {
+      sourceType = VideoSourceType.VideoSourceMediaPlayer
+    }
+    if (type === 'image' || type === 'gif') {
+      setSources((preSource) => {
+        return [
+          ...preSource,
+          {
+            sourceType,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_height,
+            zOrder: 1,
+            alpha: 1,
+            imageUrl: srcUrl
+          }
+        ]
+      })
+    } else if (type === 'video') {
+      let ret = mediaPlayer.current?.open(srcUrl,0)
+      console.log('----mediaPlaye ret: ',ret)
+      let sourceId = mediaPlayer.current!.getMediaPlayerId();
+      console.log('-----sourceId: ', sourceId)
+      setSources((preSource) => {
+        return [
+          ...preSource,
+          {
+            sourceType,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_height,
+            zOrder: 1,
+            alpha: 1,
+            mediaPlayerId: sourceId
+          }
+        ]
+      })
+    }
   }
 
   const handlePreview = () =>{
-    if(!isPreview)
+    console.log('------handlePreview: ', sources)
+    console.log('----isPreview: ',isPreview.current)
+    if(!isPreview.current)
     {
       let ret = rtcEngine?.startLocalVideoTranscoder(calcTranscoderOptions(sources));
-
+      console.log('-------startLocalVideoTranscoder ret: ',ret)
       ret = rtcEngine?.setupLocalVideo({
         sourceType: VideoSourceType.VideoSourceTranscoded,
         view: videoRef.current,
@@ -250,11 +319,14 @@ const LivePreview: React.FC = () => {
         mirrorMode: VideoMirrorModeType.VideoMirrorModeDisabled,
         renderMode: RenderModeType.RenderModeFit,
       });
-
-      setPreviewState(true);
+      console.log('--------setupLocalVideo ret: ',ret)
+      isPreview.current = true
     }
     else{
-      rtcEngine?.updateLocalTranscoderConfiguration(calcTranscoderOptions(sources));
+      console.log('----updateLocalTranscoderConfiguration isPreview: ',isPreview.current)
+      let ret = rtcEngine?.updateLocalTranscoderConfiguration(calcTranscoderOptions(sources))
+      console.log('---updateLocalTranscoderConfiguration ret: ',ret)
+
     }
   }
 
@@ -264,7 +336,7 @@ const LivePreview: React.FC = () => {
     }) 
     //dimensions 参数设置输出的画面横竖屏
     let videoOutputConfigurationobj = {
-      dimensions: isHorizontal ? { width: 1920, height: 1080 } : { width: 1080, height: 1920 },
+      dimensions: isHorizontal ? { width: 1280, height: 720 } : { width: 720, height: 1280 },
       frameRate: 25,
       bitrate: 0,
       minBitrate: -1,
@@ -300,11 +372,9 @@ const LivePreview: React.FC = () => {
   const onLayoutClick = (e) => {
     if (e.target.id === 'horizontal' && !isHorizontal) {
       setIsHorizontal(true)
-      setIsVertical(false)
     }
-    if (e.target.id === 'vertical' && !isVertical) {
+    if (e.target.id === 'vertical') {
       setIsHorizontal(false)
-      setIsVertical(true)
     }
   }
 
@@ -318,11 +388,6 @@ const LivePreview: React.FC = () => {
     }
     if (e.target.id === 'camera') {
       setIsCameraModalOpen(true)
-    }
-    if (e.target.id === 'capture') {
-      setIsScreenModalOpen(true)
-    }
-    if (e.target.id === 'media') {
     }
     if (e.target.id === 'virtual') {
       setVirtualBgModalOpen(true)
@@ -447,7 +512,7 @@ const LivePreview: React.FC = () => {
           <div id="horizontal" className={`${isHorizontal ? styles.active : ''} ${styles.button}`}>
             <span>横屏</span>
           </div>
-          <div id="vertical" className={`${isVertical ? styles.active : ''} ${styles.button}`}>
+          <div id="vertical" className={`${isHorizontal ? '' : styles.active} ${styles.button}`}>
             <span>竖屏</span>
           </div>
         </div>
@@ -474,6 +539,7 @@ const LivePreview: React.FC = () => {
       {isVirtualBgModalOpen && (
         <VirtualBackgroundModal
           onCancel={handleVirtualBgModalCancal}
+          isHorizontal = { isHorizontal }
           enableGreenScreen = {enableGreenScreen}
           onGreenScreenCb = { handleEnableGreenScreen}
           isOpen={isVirtualBgModalOpen} />

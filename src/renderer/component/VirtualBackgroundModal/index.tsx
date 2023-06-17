@@ -9,14 +9,16 @@ import { getResourcePath } from '../../utils/index'
 interface IProps {
   isOpen: boolean
   enableGreenScreen: boolean,
+  isHorizontal: boolean,
   onGreenScreenCb: (isEnable: boolean) => void
   onCancel: () => void
 }
 
-const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, enableGreenScreen,onGreenScreenCb, onCancel }) => {
+const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, enableGreenScreen,isHorizontal, onGreenScreenCb, onCancel }) => {
   //const [enableGreenScreen, setEnableGreenScreen] = useState(false)
   const { rtcEngine } = useContext(RtcEngineContext) as IAppContext
-  const backgroundImg = getResourcePath('background.png')
+  const backgroundImg = isHorizontal ? getResourcePath('background.png') : getResourcePath('background_portrait.png')
+  console.log('-----backgroundImg: ',backgroundImg)
 
   const enableSegModelGreen = () => {
     let segproperty = {
