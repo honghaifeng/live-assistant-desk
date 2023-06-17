@@ -1,17 +1,64 @@
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { Modal, Button, Switch } from 'antd'
 import { InfoCircleOutlined } from '@ant-design/icons'
+import { BackgroundSourceType, SegModelType , BackgroundBlurDegree} from 'agora-electron-sdk'
 import styles from './virtualBackgroundModal.scss'
+import RtcEngineContext, { IAppContext } from "../../context/rtcEngineContext"
+import { getResourcePath } from '../../utils/index'
 
 interface IProps {
   isOpen: boolean
+  enableGreenScreen: boolean,
+  onGreenScreenCb: (isEnable: boolean) => void
   onCancel: () => void
 }
 
-const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, onCancel }) => {
-  const [enableGreenScreen, setEnableGreenScreen] = useState(false)
+const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, enableGreenScreen,onGreenScreenCb, onCancel }) => {
+  //const [enableGreenScreen, setEnableGreenScreen] = useState(false)
+  const { rtcEngine } = useContext(RtcEngineContext) as IAppContext
+  const backgroundImg = getResourcePath('background.png')
 
-  const onGreenScreenChange = (isEnable) => {
+  const enableSegModelGreen = () => {
+    let segproperty = {
+      modelType: SegModelType.SegModelGreen
+    }
+    let ret = rtcEngine?.enableVirtualBackground(true, {},segproperty)
+    console.log('---enableSegModelGreen ret: ',ret)
+  }
+
+  const disableSegModelGreen = () => {
+    let segproperty = {
+      modelType: SegModelType.SegModelGreen
+    }
+    let ret = rtcEngine?.enableVirtualBackground(false, {},segproperty)
+    console.log('---disableSegModelGreen ret: ',ret)
+  }
+
+  const disableVirtualBackground = () => {
+    let ret = rtcEngine?.enableVirtualBackground(false, {},{})
+    console.log('---disableVirtualBackground ret: ',ret)
+    onCancel()
+  }
+
+  const handelOnBackgroundBlur = () => {
+    disableVirtualBackground()
+    let ret = rtcEngine?.enableVirtualBackground(true, {
+      background_source_type: BackgroundSourceType.BackgroundBlur,
+      blur_degree: BackgroundBlurDegree.BlurDegreeHigh
+    },{})
+    console.log('---handelOnBackgroundBlur ret: ',ret)
+  }
+
+  const handleOnBackgroundImg = () => {
+    disableVirtualBackground()
+    let ret = rtcEngine?.enableVirtualBackground(true, {
+      background_source_type: BackgroundSourceType.BackgroundImg,
+      source: backgroundImg
+    },{})
+    console.log('---handleOnBackgroundImg ret: ',ret)
+  }
+
+  const onSegModelGreenChange = (isEnable) => {
     console.log('onGreenScreenChange value: ', isEnable)
     if (isEnable) {
       Modal.confirm({
@@ -21,14 +68,18 @@ const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, onCancel }) => {
         cancelText: '暂不开启',
         onCancel() { 
           console.log('onCancel')
+          disableSegModelGreen()
+          onCancel()
         },
         onOk() {
-          setEnableGreenScreen(isEnable)
+          enableSegModelGreen()
+          onGreenScreenCb(isEnable)
+          onCancel()
           console.log('onOk')
         }
       })
     } else {
-      setEnableGreenScreen(isEnable)
+      onGreenScreenCb(isEnable)
     }
   }
   return (
@@ -36,7 +87,7 @@ const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, onCancel }) => {
       open={isOpen}
       onCancel={onCancel}
       centered={true}
-      closable={false}
+      closable={true}
       title='虚拟背景'
       footer={[
         <div key='greenScreen' className={styles.footer}>
@@ -44,14 +95,14 @@ const VirtualBackgroundModal: React.FC<IProps> = ({ isOpen, onCancel }) => {
             <span>我有绿幕</span>
             <InfoCircleOutlined />
           </div>
-          <Switch onChange={onGreenScreenChange} checked={enableGreenScreen}></Switch>
+          <Switch onChange={onSegModelGreenChange} checked={enableGreenScreen}></Switch>
         </div>
       ]}
     >
       <div className={styles.content}>
-        <Button onClick={onCancel} type="primary">无</Button>
-        <Button type="primary">模糊</Button>
-        <Button type="primary">蜜桃</Button>
+        <Button onClick={disableVirtualBackground} type="primary">无</Button>
+        <Button onClick={handelOnBackgroundBlur} type="primary">模糊</Button>
+        <Button onClick={handleOnBackgroundImg} type="primary">蜜桃</Button>
       </div>
     </Modal>
   )

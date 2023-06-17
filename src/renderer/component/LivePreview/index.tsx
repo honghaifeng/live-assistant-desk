@@ -66,6 +66,7 @@ const LivePreview: React.FC = () => {
   const [isVertical, setIsVertical] = useState(false)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isVirtualBgModalOpen, setVirtualBgModalOpen] = useState(false)
+  const [enableGreenScreen, setEnableGreenScreen] = useState(false)
   const [isScreenModalOpen, setIsScreenModalOpen] = useState(false)
   const [devices, setDevices] = useState<IDevice[]>([])
   const [sources, setSources] = useState<TranscodingVideoStream[]>([])
@@ -343,6 +344,10 @@ const LivePreview: React.FC = () => {
     setVirtualBgModalOpen(false)
   }
 
+  const handleEnableGreenScreen = (isEnable) => {
+    setEnableGreenScreen(isEnable)
+  }
+
   const captureMenuOpenChange = (value) => {
     console.log('----handleOnOpenChange value: ',value)
     setCaptureMenuOpen(value)
@@ -468,7 +473,9 @@ const LivePreview: React.FC = () => {
       )}
       {isVirtualBgModalOpen && (
         <VirtualBackgroundModal
-          onCancel={handleVirtualBgModalCancal} 
+          onCancel={handleVirtualBgModalCancal}
+          enableGreenScreen = {enableGreenScreen}
+          onGreenScreenCb = { handleEnableGreenScreen}
           isOpen={isVirtualBgModalOpen} />
       )}
     </div>
