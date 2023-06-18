@@ -108,6 +108,10 @@ const LivePreview: React.FC = () => {
 
   useEffect(() => {
     registerIpcRenderEvent()
+    window.addEventListener('mousedown', handleMouseDown)
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+    }
   },[])
 
   useEffect(() => {
@@ -136,7 +140,7 @@ const LivePreview: React.FC = () => {
   const createCanvasMask = (parentDom: HTMLDivElement,width: number,height: number) => {
     const mask = document.getElementById('canvas-mask')
     if (mask) {
-      mask.removeEventListener('mousedown', handleMouseDown)
+      //mask.removeEventListener('mousedown', handleMouseDown)
       parentDom.removeChild(mask)
     }
     console.log('----createCanvasMask width, height, parent: ',width,height,parentDom)
@@ -148,19 +152,24 @@ const LivePreview: React.FC = () => {
     //dom.style.pointerEvents = 'none'
 
     //添加mousedown事件
-    dom.addEventListener('mousedown', handleMouseDown)
+    //dom.addEventListener('mousedown', handleMouseDown)
     parentDom.insertBefore(dom, parentDom.firstChild)
     console.log('mask rect: ',dom.getBoundingClientRect())
   }
 
   const handleMouseDown = (e) => {
-    console.log('----handleMouseDown id: ',e.offsetX, e.offsetY)
+    console.log('----handleMouseDown offsetX: ','e.offsetY:', e.offsetY)
+    console.log('-------handleMouseDown id: ',e.target.id)
     if (e.target.id === 'canvas-mask') {
       let index = getSelectNode(e.offsetX, e.offsetY)
       console.log('----select index: ',index)
       setCheckIndex(index)
       updateSelectBoxRect(index,0,0,0,0)
       console.log('----index: ',index)
+    } else {
+      if (e.target.id !=='select-react') {
+        setCheckIndex(-1)
+      }
     }
   }
 

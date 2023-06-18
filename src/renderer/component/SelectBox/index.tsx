@@ -36,6 +36,10 @@ const SelectBox = (props : ConfigProps) => {
     }
   }, [props])
 
+  const handleMouseUp = (e) => {
+    console.log('-------dddddd')
+  }
+
   
   if (!mounted || !parentDom.current) {
     return null;
@@ -45,6 +49,8 @@ const SelectBox = (props : ConfigProps) => {
     <Rnd 
       style={{position: 'relative',border: '1px dotted #ccc'}}
       bounds={parentDom.current}
+      id = 'select-react'
+      onMouseUp={handleMouseUp}
       size = {size}
       position = {position}
       onDrag = {(e,d) => {
