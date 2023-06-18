@@ -7,6 +7,7 @@ import { DownOutlined,UpOutlined } from '@ant-design/icons'
 import { message, Dropdown, Menu } from 'antd'
 import CameraModal from '../CameraModal'
 import VirtualBackgroundModal from '../VirtualBackgroundModal'
+import CaptureWinModal from '../CaptureWinModal'
 import Config from '../../config/agora.config'
 import { 
   CameraCapturerConfiguration,
@@ -17,7 +18,8 @@ import {
   IMediaPlayer,
   IMediaPlayerSourceObserver,
   MediaPlayerState,
-  MediaPlayerError
+  MediaPlayerError,
+  ScreenCaptureSourceType
 } from 'agora-electron-sdk'
 
 
@@ -69,6 +71,8 @@ const LivePreview: React.FC = () => {
   const [isHorizontal, setIsHorizontal] = useState(true)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isVirtualBgModalOpen, setVirtualBgModalOpen] = useState(false)
+  const [isCapWinModalOpen,setCapWinModalOpen] = useState(false)
+  const [capWindowSources, setCapWindowSources] = useState<any>([])
   const [enableGreenScreen, setEnableGreenScreen] = useState(false)
   const [devices, setDevices] = useState<IDevice[]>([])
   const [sources, setSources] = useState<TranscodingVideoStream[]>([])
@@ -81,7 +85,7 @@ const LivePreview: React.FC = () => {
   const isPreview = useRef<boolean>(false)
   const mediaPlayer = useRef<IMediaPlayer | null>(null)
   const {rtcEngine, isAppIdExist, appId} = useContext(RtcEngineContext) as IAppContext
-  const init_width = 600, init_height = 600
+  const init_width = 200, init_height = 200
   useEffect(() => {
     if (isAppIdExist && appId.length > 0) {
       console.log('------Agora Engine init success')
@@ -252,6 +256,64 @@ const LivePreview: React.FC = () => {
     })
   }
 
+  const handleAddFullScreenSource = () => {
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 64, height: 64 }, { width: 64, height: 64 }, true)
+    const fullScreenSource = capScreenSources?.find((item) => {
+      return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
+    })
+    console.log('-----handleAddFullScreenSource capScreenSources: ', fullScreenSource)
+    if (fullScreenSource) {
+      let ret = rtcEngine?.startScreenCaptureByDisplayId(
+        fullScreenSource.sourceId,
+        { width: 0, height: 0, x: 0, y: 0 },
+        {
+          dimensions: { width: 1920, height: 1080 },
+          bitrate: 1000,
+          frameRate: 15,
+          captureMouseCursor: false,
+          windowFocus: false,
+          excludeWindowList: [],
+          excludeWindowCount: 0,
+        }
+      )
+      console.log('---startScreenCaptureByDisplayId ret: ',ret)
+      if (ret === 0) {
+        setSources((preSources) => {
+          return [
+            ...preSources,
+            {
+              sourceType: VideoSourceType.VideoSourceScreenPrimary,
+              x: 0,
+              y: 0,
+              width: 200,
+              height: 200,
+              zOrder: 1,
+              alpha: 1
+            }
+          ]
+        })
+      } else {
+        console.error('Capture Screen is failed')
+      }
+    }
+  }
+
+  const handleAddWindowSource = () => {
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 320, height: 160 }, { width: 80, height: 80 }, false)
+    const capWinSources = capScreenSources?.map(item => {
+      return {
+        id: item.sourceId,
+        sourceName: item.sourceName,
+        thumbImage: item.thumbImage,
+      }
+    })
+    if (capWinSources) {
+      setCapWindowSources(capWinSources)
+      setCapWinModalOpen(true)
+    }
+    console.log('----handleAddWindowSource capWinSources: ',capWinSources)
+  }
+
   const handleAddMediaSource = (srcUrl: string, type: string) => {
     console.log('-----handleAddMediaSource srcUrl: ',srcUrl, 'type: ', type)
     let sourceType
@@ -409,6 +471,46 @@ const LivePreview: React.FC = () => {
     setVirtualBgModalOpen(false)
   }
 
+  const handleCapWinModalCancel = () => {
+    setCapWinModalOpen(false)
+  }
+
+  const handleSelectCaptureWinSource = (selectCapWin) => {
+    console.log('-----handleSelectCaptureWInSource selectCapWin: ', selectCapWin)
+    let ret = rtcEngine?.startScreenCaptureByWindowId(
+      selectCapWin.id,
+      { width: 0, height: 0, x: 0, y: 0 },
+      {
+        dimensions: { width: 1920, height: 1080 },
+        bitrate: 1000,
+        frameRate: 15,
+        captureMouseCursor: false,
+        windowFocus: false,
+        excludeWindowList: [],
+        excludeWindowCount: 0,
+      }
+    )
+    console.log('------handleSelectCaptureWinSource ret: ',ret)
+    if (ret == 0) {
+      setSources((preSources) => {
+        return [
+          ...preSources,
+          {
+            sourceType: VideoSourceType.VideoSourceScreenPrimary,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_width,
+            zOrder: 1,
+            alpha: 1
+          }
+        ]
+      })
+    } else {
+      console.error('Transcode window failed!')
+    }
+    setCapWinModalOpen(false)
+  }
   const handleEnableGreenScreen = (isEnable) => {
     setEnableGreenScreen(isEnable)
   }
@@ -425,9 +527,15 @@ const LivePreview: React.FC = () => {
 
   const handleCaptureMenuClick = (e) => {
     console.log('-----handleCaptureMenuClick key: ',e.key)
+    setCaptureMenuOpen(false)
     if (!isAppIdExist) {
       message.info('请输入正确App ID')
       return
+    }
+    if (e.key === 'fullscreen') {
+      handleAddFullScreenSource()
+    } else if (e.key === 'winCapture') {
+      handleAddWindowSource()
     }
   }
 
@@ -543,6 +651,13 @@ const LivePreview: React.FC = () => {
           enableGreenScreen = {enableGreenScreen}
           onGreenScreenCb = { handleEnableGreenScreen}
           isOpen={isVirtualBgModalOpen} />
+      )}
+      {isCapWinModalOpen && (
+        <CaptureWinModal
+          onCancel={handleCapWinModalCancel}
+          onSelect={handleSelectCaptureWinSource}
+          captureWinSources = {capWindowSources}
+          isOpen={isCapWinModalOpen} />
       )}
     </div>
   )
