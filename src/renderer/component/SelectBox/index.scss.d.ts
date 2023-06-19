@@ -3,6 +3,8 @@ declare namespace IndexScssNamespace {
     "bottom-left": string;
     "bottom-right": string;
     box: string;
+    content: string;
+    dlgBody: string;
     resizer: string;
     "top-left": string;
     "top-right": string;

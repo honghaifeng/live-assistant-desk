@@ -180,7 +180,13 @@ const LivePreview: React.FC = () => {
       updateSelectBoxRect(index,0,0,0,0)
       console.log('----index: ',index)
     } else {
-      if (e.target.id !=='select-react') {
+      if (e.target.id === 'delete') {
+        handleDelete()
+      } else if (e.target.id === 'moveUp') {
+        handleMoveUp()
+      } else if (e.target.id === 'moveDown') {
+        handleMoveDown()
+      } else if (e.target.id !=='select-react') {
         setCheckIndex(-1)
       }
     }
@@ -257,6 +263,35 @@ const LivePreview: React.FC = () => {
       let lastSources = getNewSources(checkIndex, x, y, dw,dh)
       sources.current = lastSources
       handlePreview()
+    }
+  }
+
+  const handleMoveUp = () => {
+    if (checkIndex >= 0) {
+      sources.current[checkIndex].zOrder! += 1
+      handlePreview()
+      setCheckIndex(-1)
+    }
+  }
+
+  const handleMoveDown = () => {
+    console.log('------checkIndex: ',checkIndex)
+    if (checkIndex>=0 && sources.current[checkIndex].zOrder! >= 2) {
+      sources.current[checkIndex].zOrder! =1
+      handlePreview()
+      setCheckIndex(-1)
+    }
+  }
+
+  const handleDelete = () => {
+    console.log('-----handleDelete checkIndex: ',checkIndex)
+    if (checkIndex >= 0) {
+      let newSource = sources.current.filter((item,index) => {
+        return index !==checkIndex
+      })
+      sources.current = newSource
+      handlePreview()
+      setCheckIndex(-1)
     }
   }
 
@@ -356,7 +391,7 @@ const LivePreview: React.FC = () => {
         //height: devices[selectIndex].capacity[selectCapIndex].height,
         width: init_width,
         height: init_height,
-        zOrder: sources.current.length+1,
+        zOrder: sources.current.length+2,
         alpha: 1
       })
     }
@@ -391,7 +426,7 @@ const LivePreview: React.FC = () => {
           y: 0,
           width: 200,
           height: 200,
-          zOrder: sources.current.length+1,
+          zOrder: sources.current.length+2,
           alpha: 1
         })
         handlePreview()
@@ -438,7 +473,7 @@ const LivePreview: React.FC = () => {
         y: 0,
         width: init_width,
         height: init_height,
-        zOrder: sources.current.length+1,
+        zOrder: sources.current.length+2,
         alpha: 1,
         imageUrl: srcUrl
       })
@@ -453,7 +488,7 @@ const LivePreview: React.FC = () => {
         y: 0,
         width: init_width,
         height: init_height,
-        zOrder: sources.current.length+1,
+        zOrder: sources.current.length+2,
         alpha: 1,
         mediaPlayerId: sourceId
       })
@@ -620,7 +655,7 @@ const LivePreview: React.FC = () => {
         y: 0,
         width: init_width,
         height: init_width,
-        zOrder: sources.current.length+1,
+        zOrder: sources.current.length+2,
         alpha: 1
       })
       handlePreview()
@@ -746,7 +781,7 @@ const LivePreview: React.FC = () => {
       <div className={isHorizontal ? styles.previewRow : styles.previewColum}>
         <div className={styles.area} id="video-wapper" ref={videoRef}></div>
         {
-          (checkIndex>=0)&&(<SelectBox {...boxRect} resizingCallBack={updateResize}/>)
+          (checkIndex>=0)&&(<SelectBox {...boxRect} resizingCallBack={updateResize} handleDelete={handleDelete} handleMoveDown={handleMoveDown} handleMoveUp={handleMoveUp}/>)
         }
         <div className={styles.options}>
           {
