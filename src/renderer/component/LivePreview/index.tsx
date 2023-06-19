@@ -70,6 +70,7 @@ interface IScreenInfo {
 const LivePreview: React.FC = () => {
   console.log('----render LivePreview')
   const [isHorizontal, setIsHorizontal] = useState(true)
+  const isHorizontalRef = useRef(true)
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false)
   const [isVirtualBgModalOpen, setVirtualBgModalOpen] = useState(false)
   const [isCapWinModalOpen,setCapWinModalOpen] = useState(false)
@@ -121,7 +122,13 @@ const LivePreview: React.FC = () => {
         updateCanvasConfig()
       }, 500);
     }
-  },[isHorizontal, isPreview])
+  },[isPreview])
+
+  useEffect(() => {
+    isHorizontalRef.current = isHorizontal
+    console.log('layout is change isHorizontal: ',isHorizontalRef.current)
+    handleStopPreview()
+  }, [isHorizontal])
 
   const updateCanvasConfig = () => {
     console.log('----videoRef: ',videoRef.current)
@@ -130,8 +137,14 @@ const LivePreview: React.FC = () => {
     zoom.current = Number.parseFloat(canvas?.style.zoom || '1');
     console.log('------zoom: ',zoom)
     const parentDom = videoRef.current?.querySelector('div')
-    const width = Math.floor(max_width*zoom.current)
-    const height = Math.floor(max_height*zoom.current)
+    let width,height
+    if (isHorizontalRef.current) {
+      width = Math.floor(max_width*zoom.current)
+      height = Math.floor(max_height*zoom.current)
+    } else {
+      width = Math.floor(max_height*zoom.current)
+      height = Math.floor(max_width*zoom.current)
+    }
     if (parentDom) {
       createCanvasMask(parentDom, width, height)
     }
@@ -448,6 +461,26 @@ const LivePreview: React.FC = () => {
     handlePreview()
   }
 
+  const handleStopPreview = () => {
+    console.log('--------handleStopPreview isPreview: ',isPreview)
+    if (isPreview) {
+      let ret = rtcEngine?.stopLocalVideoTranscoder()
+      ret = rtcEngine?.setupLocalVideo({
+        sourceType: VideoSourceType.VideoSourceTranscoded,
+        view: null,
+        uid: Config.uid,
+        mirrorMode: VideoMirrorModeType.VideoMirrorModeDisabled,
+        renderMode: RenderModeType.RenderModeFit,
+      });
+      sources.current = []
+      setPreview(false)
+      while (videoRef.current?.firstChild) {
+        videoRef.current?.removeChild(videoRef.current?.firstChild);
+      }
+      console.log('--------stop localTranscoder ret: ',ret)
+    }
+  }
+
   const handlePreview = (newSources?: any) =>{
     console.log('------handlePreview source: ', sources.current)
     console.log('----isPreview: ',isPreview)
@@ -482,8 +515,9 @@ const LivePreview: React.FC = () => {
       return Object.assign({connectionId: 0}, s)
     }) 
     //dimensions 参数设置输出的画面横竖屏
+    console.log('-------calcTranscoderOptions isHorizontalRef: ',isHorizontalRef)
     let videoOutputConfigurationobj = {
-      dimensions: isHorizontal ? { width: 1280, height: 720 } : { width: 720, height: 1280 },
+      dimensions: isHorizontalRef.current ? { width: 1280, height: 720 } : { width: 720, height: 1280 },
       frameRate: 25,
       bitrate: 0,
       minBitrate: -1,
@@ -517,10 +551,13 @@ const LivePreview: React.FC = () => {
   }
  
   const onLayoutClick = (e) => {
+    console.log('-------id: ',e.target.id)
     if (e.target.id === 'horizontal' && !isHorizontal) {
+      console.log('setIsHorizontal true')
       setIsHorizontal(true)
     }
     if (e.target.id === 'vertical') {
+      console.log('setIsHorizontal false')
       setIsHorizontal(false)
     }
   }
