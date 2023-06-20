@@ -1,5 +1,5 @@
 import React from 'react'
-import { Image, Modal } from 'antd'
+import { Divider, Image, Modal } from 'antd'
 import { rgbImageBufferToBase64 } from '../../utils/base64'
 import styles from './captureWinModal.scss'
 import { 
@@ -30,6 +30,7 @@ const CaptureWinModal: React.FC<IProps> = ({isOpen, onCancel, onSelect, captureW
       onSelect(selectedSource)
     }
   }
+  
   return (
     <Modal
      open={isOpen}
@@ -40,14 +41,18 @@ const CaptureWinModal: React.FC<IProps> = ({isOpen, onCancel, onSelect, captureW
     >
       <div className={styles.content}>
        {
-          captureWinSources.map(item => {
-            return (
-              <div id={item.id} onClick={handleOnSelectClick} key={item.id} className={styles.card}>
-                <img src={rgbImageBufferToBase64(item.thumbImage)} />
-                <div>{item.sourceName}</div>
-              </div>
-            )
-          })
+          captureWinSources.length <=0 ? (
+            <div>暂无数据</div>
+          ): (
+            captureWinSources.map(item => {
+              return (
+                <div id={item.id} onClick={handleOnSelectClick} key={item.id} className={styles.card}>
+                  <img src={rgbImageBufferToBase64(item.thumbImage)} />
+                  <div>{item.sourceName}</div>
+                </div>
+              )
+            })
+          )
        }
       </div>
     </Modal>

@@ -437,8 +437,11 @@ const LivePreview: React.FC = () => {
   }
 
   const handleAddWindowSource = () => {
-    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 320, height: 160 }, { width: 80, height: 80 }, false)
-    const capWinSources = capScreenSources?.map(item => {
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 320, height: 160 }, { width: 80, height: 80 }, true)
+    console.log('------capScreenSources: ',capScreenSources,'rtcEngine: ',rtcEngine)
+    const capWinSources = capScreenSources!.filter((item) => {
+      return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeWindow
+    }).map(item => {
       return {
         id: item.sourceId,
         sourceName: item.sourceName,
@@ -734,7 +737,7 @@ const LivePreview: React.FC = () => {
           <img src={`file://${item.imgUrl}`} alt="" style={{pointerEvents: 'none'}}/>
           <div className={styles.desc}>
             <Dropdown
-              trigger={['hover']}
+              trigger={['click']}
               onOpenChange={captureMenuOpenChange}
               overlay={captureMenu}>
               <div>
@@ -751,7 +754,7 @@ const LivePreview: React.FC = () => {
           <img src={`file://${item.imgUrl}`} alt="" style={{pointerEvents: 'none'}}/>
           <div className={styles.desc}>
             <Dropdown
-              trigger={['hover']}
+              trigger={['click']}
               onOpenChange={mediaMenuOpenChange}
               overlay={mediaMenu}>
               <div>
