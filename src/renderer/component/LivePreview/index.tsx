@@ -399,12 +399,13 @@ const LivePreview: React.FC = () => {
   }
 
   const handleAddFullScreenSource = () => {
-    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 64, height: 64 }, { width: 64, height: 64 }, true)
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 1920, height: 1080 }, { width: 64, height: 64 }, true)
     const fullScreenSource = capScreenSources?.find((item) => {
       return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
     })
     console.log('-----handleAddFullScreenSource capScreenSources: ', fullScreenSource)
     if (fullScreenSource) {
+      //let ret1 = rtcEngine?.startScreenCaptureBySourceType()
       let ret = rtcEngine?.startScreenCaptureByDisplayId(
         fullScreenSource.sourceId,
         { width: 0, height: 0, x: 0, y: 0 },
@@ -424,8 +425,8 @@ const LivePreview: React.FC = () => {
           sourceType: VideoSourceType.VideoSourceScreenPrimary,
           x: 0,
           y: 0,
-          width: 200,
-          height: 200,
+          width: init_width,
+          height: init_height,
           zOrder: sources.current.length+2,
           alpha: 1
         })
