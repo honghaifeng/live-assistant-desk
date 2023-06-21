@@ -13,6 +13,7 @@ if (systemPreferences.askForMediaAccess) {
 
 // global reference to mainWindow (necessary to prevent window from being garbage collected)
 let mainWindow;
+let captureWindow
 
 function createMainWindow() {
   const window = new BrowserWindow({
@@ -60,6 +61,53 @@ function createMainWindow() {
   return window;
 }
 
+const createCaptureWin = (args) => {
+  const cptWindow = new BrowserWindow({
+    x: args.x || 0,
+    y: args.y || 0,
+    width: args.width || 1920,
+    height: args.height || 1080,
+    autoHideMenuBar: true,
+    transparent: true,
+    backgroundColor: '#00000000',
+    frame: false,
+    movable: false,
+    resizable: false,
+    enableLargerThanScreen: true,
+    hasShadow: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      webSecurity: false,
+    },
+    //titleBarStyle: 'hidden',
+    //titleBarOverlay: false,
+  })
+
+  cptWindow.setFullScreenable(false)
+  /*
+  cptWindow.on('ready-to-show', () => {
+    // 窗口准备显示后再打开开发者工具
+    cptWindow.webContents.openDevTools({
+      mode: 'detach',
+      activate: true,
+    });
+  })*/
+  if (isDevelopment) {
+    cptWindow.loadURL(`http://localhost:${process.env.ELECTRON_WEBPACK_WDS_PORT}/#/capture`);
+  } else {
+    cptWindow.loadURL(
+      formatUrl({
+        pathname: path.join(__dirname, 'index.html'),
+        protocol: 'file',
+        slashes: true,
+        hash: '/capture',
+      })
+    );
+  }
+  return cptWindow
+}
+
 const registerIpcMainEvent = () => {
   ipcMain.on(systemCommand.OPEN_SELECT_FILE_DIALOG, (event, args) => {
     console.log('----------args: ',args)
@@ -95,8 +143,28 @@ const registerIpcMainEvent = () => {
     .catch((error) => {
       console.error('Error while opening file dialog:', error);
     });
+  });
+  ipcMain.on('area-capture', (e, args) => {
+    console.log('----args: ',args)
+    captureWindow = createCaptureWin(args)
+  });
+  ipcMain.on('capture-close', () => {
+    console.log('----window closed')
+    captureWindow.close()
+    captureWindow = null
+  })
+  ipcMain.on('capture-show', () => {
+    console.log('----window show')
+    captureWindow.show()
+  })
+  ipcMain.on('capture-complete', (e, rect) => {
+    console.log('----capture-complete rect: ',rect)
+    mainWindow.webContents.send('capture-complete', rect)
+    captureWindow.close()
+    captureWindow = null
   })
 }
+  
 // quit application when all windows are closed
 app.on('window-all-closed', () => {
   // on macOS it is common for applications to stay open until the user explicitly quits

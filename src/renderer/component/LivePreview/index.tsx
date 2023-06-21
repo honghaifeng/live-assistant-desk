@@ -302,6 +302,10 @@ const LivePreview: React.FC = () => {
         handleAddMediaSource(args.filePaths[0], args.type)
       }
     })
+    ipcRenderer.on('capture-complete', (event, rect) => {
+      console.log('----registerIpcRenderEvent capture-complete rect: ',rect)
+      addScreenAreaSource(rect)
+    })
   }
 
   const enumerateDevices = () => {
@@ -436,6 +440,52 @@ const LivePreview: React.FC = () => {
       }
     }
   }
+
+  const handleAddScreenArea = () => {
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 1920, height: 1080 }, { width: 64, height: 64 }, true)
+    const areaScreenSource = capScreenSources?.find((item) => {
+      return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
+    })
+    console.log('----handleAddScreenArea source: ',areaScreenSource)
+    ipcRenderer.send('area-capture',areaScreenSource?.position)
+  }
+
+  const addScreenAreaSource = (rect) => {
+    console.log('----addScreenAreaSource rect: ',rect)
+    let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 1920, height: 1080 }, { width: 64, height: 64 }, true)
+    const areaScreenSource = capScreenSources?.find((item) => {
+      return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
+    })
+    let ret = rtcEngine?.startScreenCaptureByDisplayId(
+      areaScreenSource!.sourceId,
+      { width: rect.width, height: rect.height, x: rect.x, y: rect.y },
+      {
+        dimensions: { width: 1920, height: 1080 },
+        bitrate: 1000,
+        frameRate: 15,
+        captureMouseCursor: false,
+        windowFocus: false,
+        excludeWindowList: [],
+        excludeWindowCount: 0,
+      }
+    )
+    console.log('---addScreenAreaSource ret: ',ret)
+    if (ret === 0) {
+      sources.current.push({
+        sourceType: VideoSourceType.VideoSourceScreenPrimary,
+        x: 0,
+        y: 0,
+        width: init_width,
+        height: init_height,
+        zOrder: sources.current.length+2,
+        alpha: 1
+      })
+      handlePreview()
+    } else {
+      console.error('Capture Screen is failed')
+    }
+
+  } 
 
   const handleAddWindowSource = () => {
     let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 320, height: 160 }, { width: 80, height: 80 }, true)
@@ -693,6 +743,9 @@ const LivePreview: React.FC = () => {
       handleAddFullScreenSource()
     } else if (e.key === 'winCapture') {
       handleAddWindowSource()
+    } else if (e.key === 'areaCapture') {
+      //ipcRenderer.send('area-capture')
+      handleAddScreenArea()
     }
   }
 
