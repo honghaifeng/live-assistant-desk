@@ -456,6 +456,8 @@ const LivePreview: React.FC = () => {
     const areaScreenSource = capScreenSources?.find((item) => {
       return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
     })
+    let ret1 = rtcEngine?.stopScreenCaptureBySourceType(VideoSourceType.VideoSourceScreenPrimary)
+    console.log('---stop screen capture ret1: ',ret1)
     let ret = rtcEngine?.startScreenCaptureByDisplayId(
       areaScreenSource!.sourceId,
       { width: rect.width, height: rect.height, x: rect.x, y: rect.y },
