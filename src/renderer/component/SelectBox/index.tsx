@@ -55,9 +55,17 @@ const SelectBox = (props : ConfigProps) => {
           if (canavsMask) {
             const parentRect = canavsMask.getBoundingClientRect();
             console.log('----canavs maske rect: ',parentRect)
+            /*
             setCtxModalPosition({
               left: parentRect.left + props.left + Math.floor(props.width/2),
               top: parentRect.top + props.top + Math.floor(props.height/2)
+            })*/
+            setCtxModalPosition((pre) => {
+              return {
+                ...pre,
+                left: parentRect.left + position.x + Math.floor(props.width/2),
+                top: parentRect.top + position.y + Math.floor(props.height/2)
+              }
             })
             setContextMenuDlgOpen(true)
           }

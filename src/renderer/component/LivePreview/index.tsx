@@ -111,6 +111,7 @@ const LivePreview: React.FC = () => {
     registerIpcRenderEvent()
     window.addEventListener('mousedown', handleMouseDown)
     return () => {
+      sources.current = []
       window.removeEventListener('mousedown', handleMouseDown)
     }
   },[])
