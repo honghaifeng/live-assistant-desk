@@ -410,7 +410,20 @@ const LivePreview: React.FC = () => {
     })
     console.log('-----handleAddFullScreenSource capScreenSources: ', fullScreenSource)
     if (fullScreenSource) {
-      //let ret1 = rtcEngine?.startScreenCaptureBySourceType()
+      let ret = rtcEngine?.startScreenCaptureBySourceType(VideoSourceType.VideoSourceScreen,{
+        isCaptureWindow: false,
+        displayId: fullScreenSource.sourceId,
+        params: {
+          dimensions: { width: 1920, height: 1080 },
+          bitrate: 1000,
+          frameRate: 15,
+          captureMouseCursor: false,
+          windowFocus: false,
+          excludeWindowList: [],
+          excludeWindowCount: 0,
+        }
+      })
+      /*
       let ret = rtcEngine?.startScreenCaptureByDisplayId(
         fullScreenSource.sourceId,
         { width: 0, height: 0, x: 0, y: 0 },
@@ -423,7 +436,7 @@ const LivePreview: React.FC = () => {
           excludeWindowList: [],
           excludeWindowCount: 0,
         }
-      )
+      )*/
       console.log('---startScreenCaptureByDisplayId ret: ',ret)
       if (ret === 0) {
         sources.current.push({
@@ -691,6 +704,20 @@ const LivePreview: React.FC = () => {
 
   const handleSelectCaptureWinSource = (selectCapWin) => {
     console.log('-----handleSelectCaptureWInSource selectCapWin: ', selectCapWin)
+    /*
+    let ret = rtcEngine?.startScreenCaptureBySourceType(VideoSourceType.VideoSourceScreenPrimary, {
+      isCaptureWindow: true,
+      windowId: selectCapWin.id,
+      params: {
+        dimensions: { width: 1920, height: 1080 },
+        bitrate: 1000,
+        frameRate: 15,
+        captureMouseCursor: false,
+        windowFocus: false,
+        excludeWindowList: [],
+        excludeWindowCount: 0,
+      }
+    })*/
     let ret = rtcEngine?.startScreenCaptureByWindowId(
       selectCapWin.id,
       { width: 0, height: 0, x: 0, y: 0 },
@@ -706,7 +733,7 @@ const LivePreview: React.FC = () => {
     )
     console.log('------handleSelectCaptureWinSource ret: ',ret)
     if (ret == 0) {
-      sources.current.push({
+      let newSource = {
         sourceType: VideoSourceType.VideoSourceScreenPrimary,
         x: 0,
         y: 0,
@@ -714,7 +741,15 @@ const LivePreview: React.FC = () => {
         height: init_width,
         zOrder: sources.current.length+2,
         alpha: 1
+      }
+      let existIndex = sources.current.findIndex((item) => {
+        return item.sourceType === newSource.sourceType
       })
+      if (existIndex >= 0) {
+        sources.current[existIndex] = newSource
+      } else {
+        sources.current.push(newSource)
+      }
       handlePreview()
     } else {
       console.error('Transcode window failed!')
