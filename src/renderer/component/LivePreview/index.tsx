@@ -67,6 +67,11 @@ interface IScreenInfo {
   title: string
 }
 
+interface sourceType {
+  id: string,
+  source: TranscodingVideoStream
+}
+
 const LivePreview: React.FC = () => {
   console.log('----render LivePreview')
   const [isHorizontal, setIsHorizontal] = useState(true)
@@ -86,7 +91,7 @@ const LivePreview: React.FC = () => {
   const videoRef = useRef<HTMLDivElement>(null)
   const mediaPlayer = useRef<IMediaPlayer | null>(null)
   const zoom = useRef(1)
-  const sources = useRef<TranscodingVideoStream[]>([])
+  const transCodeSources = useRef<sourceType[]>([])
   const {rtcEngine, isAppIdExist, appId} = useContext(RtcEngineContext) as IAppContext
   const init_width = 300, init_height = 300
   const max_width = 1280, max_height = 720
@@ -111,7 +116,7 @@ const LivePreview: React.FC = () => {
     registerIpcRenderEvent()
     window.addEventListener('mousedown', handleMouseDown)
     return () => {
-      sources.current = []
+      transCodeSources.current = []
       window.removeEventListener('mousedown', handleMouseDown)
     }
   },[])
@@ -195,15 +200,15 @@ const LivePreview: React.FC = () => {
 
   const getSelectNode = (posX, posY) => {
     let selectIndex = -1, zOrder = 0
-    sources.current.forEach((item, index) => {
-      let zoomX = Math.floor(item.x!*zoom.current)
-      let zoomY = Math.floor(item.y!*zoom.current)
-      let zoomW = Math.floor(item.width!*zoom.current)
-      let zoomH = Math.floor(item.height!*zoom.current)
+    transCodeSources.current.forEach((item, index) => {
+      let zoomX = Math.floor(item.source.x!*zoom.current)
+      let zoomY = Math.floor(item.source.y!*zoom.current)
+      let zoomW = Math.floor(item.source.width!*zoom.current)
+      let zoomH = Math.floor(item.source.height!*zoom.current)
       if (posX >= zoomX && posY >= zoomY && posX <= (zoomX + zoomW) && posY <= (zoomY + zoomH)) {
-        if (item.zOrder! >= zOrder) {
+        if (item.source.zOrder! >= zOrder) {
           selectIndex = index
-          zOrder = item.zOrder!
+          zOrder = item.source.zOrder!
         }
       }
     })
@@ -212,34 +217,37 @@ const LivePreview: React.FC = () => {
 
   const updateSelectBoxRect = (selectIndex, dx=0, dy=0,dw=0,dh=0) => {
     if (selectIndex >= 0) {
-      console.log('updateSelectBoxRect dx: ',Math.floor(sources.current[selectIndex].x! * zoom.current)+dx)
-      console.log('updateSelectBoxRect dy: ',Math.floor(sources.current[selectIndex].y! * zoom.current)+dy)
+      console.log('updateSelectBoxRect dx: ',Math.floor(transCodeSources.current[selectIndex].source.x! * zoom.current)+dx)
+      console.log('updateSelectBoxRect dy: ',Math.floor(transCodeSources.current[selectIndex].source.y! * zoom.current)+dy)
       console.log('updateSelectBoxRect dw, dh: ',dw,dh)
       setBoxRect({
         ...boxRect,
-        left:  Math.floor((sources.current[selectIndex].x! + dx) * zoom.current),
-        top: Math.floor((sources.current[selectIndex].y!+dy) * zoom.current),
-        width: Math.floor((sources.current[selectIndex].width!) * zoom.current + dw),
-        height: Math.floor((sources.current[selectIndex].height!) * zoom.current + dh)
+        left:  Math.floor((transCodeSources.current[selectIndex].source.x! + dx) * zoom.current),
+        top: Math.floor((transCodeSources.current[selectIndex].source.y!+dy) * zoom.current),
+        width: Math.floor((transCodeSources.current[selectIndex].source.width!) * zoom.current + dw),
+        height: Math.floor((transCodeSources.current[selectIndex].source.height!) * zoom.current + dh)
       })
     }
   }
 
-  const getNewSources = (selectIndex: number, x: number, y: number, dw: number, dh:number):TranscodingVideoStream[] => {
-    let newSources = sources.current.map((item, index) => {
+  const getNewSources = (selectIndex: number, x: number, y: number, dw: number, dh:number):sourceType[] => {
+    let newSources: sourceType[] = transCodeSources.current.map((item, index) => {
       if (index === selectIndex) {
-        let dx = Math.floor(x/zoom.current) - item.x!
-        let dy = Math.floor(y/zoom.current) - item.y!
+        let dx = Math.floor(x/zoom.current) - item.source.x!
+        let dy = Math.floor(y/zoom.current) - item.source.y!
         console.log('----getNewSource dx, dy: ',dx,dy)
         console.log('----getNewSource dw, dh: ',dw,dh)
         return {
-          ...item,
-          x: item.x! + dx,
-          y: item.y! + dy,
-          //width: item.width! + dw1,
-          //height: item.height! + dh1
-          width: item.width! + Math.floor(dw/zoom.current),
-          height: item.height! + Math.floor(dh/zoom.current)
+          id: item.id,
+          source: {
+            ...item.source,
+            x: item.source.x! + dx,
+            y: item.source.y! + dy,
+            //width: item.width! + dw1,
+            //height: item.height! + dh1
+            width: item.source.width! + Math.floor(dw/zoom.current),
+            height: item.source.height! + Math.floor(dh/zoom.current)
+          }
         }
       }
       return item
@@ -262,14 +270,14 @@ const LivePreview: React.FC = () => {
       updateSources(checkIndex,x,y,dw,dh)
     } else {
       let lastSources = getNewSources(checkIndex, x, y, dw,dh)
-      sources.current = lastSources
+      transCodeSources.current = lastSources
       handlePreview()
     }
   }
 
   const handleMoveUp = () => {
     if (checkIndex >= 0) {
-      sources.current[checkIndex].zOrder! += 1
+      transCodeSources.current[checkIndex].source.zOrder! += 1
       handlePreview()
       setCheckIndex(-1)
     }
@@ -277,8 +285,8 @@ const LivePreview: React.FC = () => {
 
   const handleMoveDown = () => {
     console.log('------checkIndex: ',checkIndex)
-    if (checkIndex>=0 && sources.current[checkIndex].zOrder! >= 2) {
-      sources.current[checkIndex].zOrder! =1
+    if (checkIndex>=0 && transCodeSources.current[checkIndex].source.zOrder! >= 2) {
+      transCodeSources.current[checkIndex].source.zOrder! =1
       handlePreview()
       setCheckIndex(-1)
     }
@@ -287,10 +295,19 @@ const LivePreview: React.FC = () => {
   const handleDelete = () => {
     console.log('-----handleDelete checkIndex: ',checkIndex)
     if (checkIndex >= 0) {
-      let newSource = sources.current.filter((item,index) => {
+      if (transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceMediaPlayer) {
+        //destroyMediaPlayer()
+        mediaPlayer.current?.stop()
+      }
+      if (transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceCamera) {
+        //destroyMediaPlayer()
+        //mediaPlayer.current?.stop()
+        rtcEngine?.stopPreview()
+      }
+      let newSource = transCodeSources.current.filter((item,index) => {
         return index !==checkIndex
       })
-      sources.current = newSource
+      transCodeSources.current = newSource
       handlePreview()
       setCheckIndex(-1)
     }
@@ -365,6 +382,13 @@ const LivePreview: React.FC = () => {
     mediaPlayer.current.registerPlayerSourceObserver(MediaPlayerListener)
   }
 
+  const destroyMediaPlayer = () => {
+    if (!mediaPlayer.current) {
+      return;
+    }
+    rtcEngine?.destroyMediaPlayer(mediaPlayer.current);
+  }
+
   const handleAddCamera = (selectIndex, selectCapIndex) => {
     console.log('---handleAddCamera','selectIndex: ',selectIndex,'selectCapIndex: ',selectCapIndex)
     if (devices.length < 1) {
@@ -384,20 +408,24 @@ const LivePreview: React.FC = () => {
     let ret = rtcEngine?.startCameraCapture(type, configuration)
     console.log('-----ret: ',ret)
     console.log('-----videoRef: ',videoRef.current)
-    let existIndex = sources.current.findIndex((item) => {
-      return item.sourceType === type
+    let existIndex = transCodeSources.current.findIndex((item) => {
+      //return item.source.sourceType === type
+      return item.id === configuration.deviceId
     })
     if (existIndex < 0) {
-      sources.current.push({
-        sourceType: type,
-        x: 0,
-        y: 0,
-        //width: devices[selectIndex].capacity[selectCapIndex].width,
-        //height: devices[selectIndex].capacity[selectCapIndex].height,
-        width: init_width,
-        height: init_height,
-        zOrder: sources.current.length+2,
-        alpha: 1
+      transCodeSources.current.push({
+        id: configuration.deviceId!,
+        source: {
+          sourceType: type,
+          x: 0,
+          y: 0,
+          //width: devices[selectIndex].capacity[selectCapIndex].width,
+          //height: devices[selectIndex].capacity[selectCapIndex].height,
+          width: init_width,
+          height: init_height,
+          zOrder: transCodeSources.current.length+2,
+          alpha: 1
+        }
       })
     }
     handlePreview()
@@ -439,15 +467,24 @@ const LivePreview: React.FC = () => {
       )*/
       console.log('---startScreenCaptureByDisplayId ret: ',ret)
       if (ret === 0) {
-        sources.current.push({
-          sourceType: VideoSourceType.VideoSourceScreenPrimary,
-          x: 0,
-          y: 0,
-          width: init_width,
-          height: init_height,
-          zOrder: sources.current.length+2,
-          alpha: 1
+        let existIndex = transCodeSources.current.findIndex((item) => {
+          //return item.source.sourceType === type
+          return item.id === fullScreenSource.sourceId
         })
+        if (existIndex < 0) {
+          transCodeSources.current.push({
+            id: fullScreenSource.sourceId,
+            source: {
+              sourceType: VideoSourceType.VideoSourceScreenPrimary,
+              x: 0,
+              y: 0,
+              width: init_width,
+              height: init_height,
+              zOrder: transCodeSources.current.length+2,
+              alpha: 1
+            }
+          })
+        }
         handlePreview()
       } else {
         console.error('Capture Screen is failed')
@@ -487,15 +524,24 @@ const LivePreview: React.FC = () => {
     )
     console.log('---addScreenAreaSource ret: ',ret)
     if (ret === 0) {
-      sources.current.push({
-        sourceType: VideoSourceType.VideoSourceScreenPrimary,
-        x: 0,
-        y: 0,
-        width: init_width,
-        height: init_height,
-        zOrder: sources.current.length+2,
-        alpha: 1
+      let existIndex = transCodeSources.current.findIndex((item) => {
+        //return item.source.sourceType === type
+        return item.id === areaScreenSource!.sourceId
       })
+      if (existIndex < 0) {
+        transCodeSources.current.push({
+          id: areaScreenSource!.sourceId,
+          source: {
+            sourceType: VideoSourceType.VideoSourceScreenPrimary,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_height,
+            zOrder: transCodeSources.current.length+2,
+            alpha: 1
+          }
+        })
+      }
       handlePreview()
     } else {
       console.error('Capture Screen is failed')
@@ -537,31 +583,52 @@ const LivePreview: React.FC = () => {
       sourceType = VideoSourceType.VideoSourceMediaPlayer
     }
     if (type === 'image' || type === 'gif') {
-      sources.current.push({
-        sourceType,
-        x: 0,
-        y: 0,
-        width: init_width,
-        height: init_height,
-        zOrder: sources.current.length+2,
-        alpha: 1,
-        imageUrl: srcUrl
+      let existIndex = transCodeSources.current.findIndex((item) => {
+        //return item.source.sourceType === type
+        return item.id === srcUrl
       })
+      if (existIndex < 0) {
+        transCodeSources.current.push({
+          id: srcUrl,
+          source: {
+            sourceType,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_height,
+            zOrder: transCodeSources.current.length+2,
+            alpha: 1,
+            imageUrl: srcUrl
+          }
+        })
+      }
     } else if (type === 'video') {
+      if (!mediaPlayer.current) {
+        createMediaPlayer()
+      }
       let ret = mediaPlayer.current?.open(srcUrl,0)
       console.log('----mediaPlaye ret: ',ret)
       let sourceId = mediaPlayer.current!.getMediaPlayerId();
       console.log('-----sourceId: ', sourceId)
-      sources.current.push({
-        sourceType,
-        x: 0,
-        y: 0,
-        width: init_width,
-        height: init_height,
-        zOrder: sources.current.length+2,
-        alpha: 1,
-        mediaPlayerId: sourceId
+      let existIndex = transCodeSources.current.findIndex((item) => {
+        //return item.source.sourceType === type
+        return item.id === sourceId.toString()
       })
+      if (existIndex < 0) {
+        transCodeSources.current.push({
+          id: sourceId.toString(),
+          source: {
+            sourceType,
+            x: 0,
+            y: 0,
+            width: init_width,
+            height: init_height,
+            zOrder: transCodeSources.current.length+2,
+            alpha: 1,
+            mediaPlayerId: sourceId
+          }
+        })
+      }
     }
     handlePreview()
   }
@@ -577,7 +644,7 @@ const LivePreview: React.FC = () => {
         mirrorMode: VideoMirrorModeType.VideoMirrorModeDisabled,
         renderMode: RenderModeType.RenderModeFit,
       });
-      sources.current = []
+      transCodeSources.current = []
       setPreview(false)
       while (videoRef.current?.firstChild) {
         videoRef.current?.removeChild(videoRef.current?.firstChild);
@@ -587,11 +654,11 @@ const LivePreview: React.FC = () => {
   }
 
   const handlePreview = (newSources?: any) =>{
-    console.log('------handlePreview source: ', sources.current)
+    console.log('------handlePreview source: ', transCodeSources.current)
     console.log('----isPreview: ',isPreview)
     if(!isPreview)
     {
-      let ret = rtcEngine?.startLocalVideoTranscoder(calcTranscoderOptions(sources.current));
+      let ret = rtcEngine?.startLocalVideoTranscoder(calcTranscoderOptions(transCodeSources.current));
       console.log('-------startLocalVideoTranscoder ret: ',ret)
       ret = rtcEngine?.setupLocalVideo({
         sourceType: VideoSourceType.VideoSourceTranscoded,
@@ -608,17 +675,19 @@ const LivePreview: React.FC = () => {
       if (newSources) {
         ret = rtcEngine?.updateLocalTranscoderConfiguration(calcTranscoderOptions(newSources))
       } else {
-        ret = rtcEngine?.updateLocalTranscoderConfiguration(calcTranscoderOptions(sources.current))
+        ret = rtcEngine?.updateLocalTranscoderConfiguration(calcTranscoderOptions(transCodeSources.current))
       }
       console.log('---updateLocalTranscoderConfiguration ret: ',ret)
 
     }
   }
 
-  const calcTranscoderOptions = (sources) => {
+  const calcTranscoderOptions = (sources: sourceType[]) => {
     let videoInputStreams = sources.map(s => {
-      return Object.assign({connectionId: 0}, s)
+      Object.assign({connectionId: 0}, s.source)
+      return s.source
     }) 
+    console.log('---videoInputStreams: ',videoInputStreams)
     //dimensions 参数设置输出的画面横竖屏
     console.log('-------calcTranscoderOptions isHorizontalRef: ',isHorizontalRef)
     let videoOutputConfigurationobj = {
@@ -739,16 +808,19 @@ const LivePreview: React.FC = () => {
         y: 0,
         width: init_width,
         height: init_width,
-        zOrder: sources.current.length+2,
+        zOrder: transCodeSources.current.length+2,
         alpha: 1
       }
-      let existIndex = sources.current.findIndex((item) => {
-        return item.sourceType === newSource.sourceType
+      let existIndex = transCodeSources.current.findIndex((item) => {
+        return item.id === selectCapWin.id
       })
       if (existIndex >= 0) {
-        sources.current[existIndex] = newSource
+        transCodeSources.current[existIndex].source = newSource
       } else {
-        sources.current.push(newSource)
+        transCodeSources.current.push({
+          id: selectCapWin.id,
+          source: newSource
+        })
       }
       handlePreview()
     } else {
