@@ -92,6 +92,7 @@ const LivePreview: React.FC = () => {
   const mediaPlayer = useRef<IMediaPlayer | null>(null)
   const zoom = useRef(1)
   const transCodeSources = useRef<sourceType[]>([])
+  const screenShareObj = useRef({})
   const {rtcEngine, isAppIdExist, appId} = useContext(RtcEngineContext) as IAppContext
   const init_width = 300, init_height = 300
   const max_width = 1280, max_height = 720
@@ -109,6 +110,7 @@ const LivePreview: React.FC = () => {
       setCapacityIndex(0)
       enumerateDevices()
       createMediaPlayer()
+      screenShareObj.current = {firstScreen:false, secondScreen:false, thirdScreen:false}
     }
   },[isAppIdExist, appId])
 
@@ -118,6 +120,7 @@ const LivePreview: React.FC = () => {
     return () => {
       transCodeSources.current = []
       window.removeEventListener('mousedown', handleMouseDown)
+      screenShareObj.current = {firstScreen:false, secondScreen:false, thirdScreen:false}
     }
   },[])
 
@@ -299,11 +302,20 @@ const LivePreview: React.FC = () => {
         //destroyMediaPlayer()
         mediaPlayer.current?.stop()
       }
-      if (transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceCamera) {
+      if (transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceCamera || 
+        transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceCameraSecondary) {
         //destroyMediaPlayer()
         //mediaPlayer.current?.stop()
-        rtcEngine?.stopPreview()
+        //rtcEngine?.stopPreview()
+        rtcEngine?.stopCameraCapture(transCodeSources.current[checkIndex].source.sourceType!)
       }
+      if(transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceScreenPrimary || 
+        transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceScreenSecondary ||
+        transCodeSources.current[checkIndex].source.sourceType === VideoSourceType.VideoSourceScreenThird )
+        {
+          rtcEngine?.stopScreenCaptureBySourceType(transCodeSources.current[checkIndex].source.sourceType!)
+          setScreenShareObjStatus(transCodeSources.current[checkIndex].source.sourceType, false)
+        }
       let newSource = transCodeSources.current.filter((item,index) => {
         return index !==checkIndex
       })
@@ -431,6 +443,58 @@ const LivePreview: React.FC = () => {
     handlePreview()
   }
 
+  const getShareScreenType = () =>{
+    let index = -1;
+    let type = -1
+    if(screenShareObj.current["firstScreen"])
+    {
+      if(screenShareObj.current["secondScreen"])
+      {
+         index = screenShareObj.current["thirdScreen"] ? -1 : 3;
+      }
+      else{
+        index = 2;
+      }
+    }
+    else{
+      index = 1;
+    }
+    if(index == -1)
+    {
+      message.info('最多开启3个窗口分享');
+      return type;
+    }
+    
+    if(index == 1)
+    {
+      type = VideoSourceType.VideoSourceScreenPrimary
+    }
+    else if(index == 2)
+    {
+      type = VideoSourceType.VideoSourceScreenSecondary
+    }
+    else{
+      type = VideoSourceType.VideoSourceScreenThird
+    }
+
+    return type;
+  }
+
+  const setScreenShareObjStatus = (type,status) =>{
+    //let obj = screenShareObj;
+    if(type == VideoSourceType.VideoSourceScreenPrimary)
+    {
+      screenShareObj.current={firstScreen:status, secondScreen: screenShareObj.current["secondScreen"], thirdScreen:screenShareObj.current["thirdScreen"]}
+    }
+    else if(type == VideoSourceType.VideoSourceScreenSecondary)
+    {
+      screenShareObj.current={firstScreen:screenShareObj.current["firstScreen"], secondScreen: status, thirdScreen:screenShareObj.current["thirdScreen"]}
+    }
+    else{
+      screenShareObj.current={firstScreen:screenShareObj.current["firstScreen"], secondScreen: screenShareObj.current["secondScreen"], thirdScreen:status}
+    }
+  }
+
   const handleAddFullScreenSource = () => {
     let capScreenSources = rtcEngine?.getScreenCaptureSources({ width: 1920, height: 1080 }, { width: 64, height: 64 }, true)
     const fullScreenSource = capScreenSources?.find((item) => {
@@ -438,7 +502,12 @@ const LivePreview: React.FC = () => {
     })
     console.log('-----handleAddFullScreenSource capScreenSources: ', fullScreenSource)
     if (fullScreenSource) {
-      let ret = rtcEngine?.startScreenCaptureBySourceType(VideoSourceType.VideoSourceScreen,{
+      let type = getShareScreenType();
+      if(type == -1)
+      {
+        return
+      }
+      let ret = rtcEngine?.startScreenCaptureBySourceType(type,{
         isCaptureWindow: false,
         displayId: fullScreenSource.sourceId,
         params: {
@@ -475,7 +544,7 @@ const LivePreview: React.FC = () => {
           transCodeSources.current.push({
             id: fullScreenSource.sourceId,
             source: {
-              sourceType: VideoSourceType.VideoSourceScreenPrimary,
+              sourceType: type,
               x: 0,
               y: 0,
               width: init_width,
@@ -484,6 +553,8 @@ const LivePreview: React.FC = () => {
               alpha: 1
             }
           })
+
+          setScreenShareObjStatus(type, true)
         }
         handlePreview()
       } else {
@@ -507,12 +578,20 @@ const LivePreview: React.FC = () => {
     const areaScreenSource = capScreenSources?.find((item) => {
       return item.type === ScreenCaptureSourceType.ScreencapturesourcetypeScreen
     })
-    let ret1 = rtcEngine?.stopScreenCaptureBySourceType(VideoSourceType.VideoSourceScreenPrimary)
-    console.log('---stop screen capture ret1: ',ret1)
-    let ret = rtcEngine?.startScreenCaptureByDisplayId(
-      areaScreenSource!.sourceId,
-      { width: rect.width, height: rect.height, x: rect.x, y: rect.y },
-      {
+   // let ret1 = rtcEngine?.stopScreenCaptureBySourceType(VideoSourceType.VideoSourceScreenPrimary)
+   // console.log('---stop screen capture ret1: ',ret1)
+
+    let type = getShareScreenType();
+    if(type == -1)
+    {
+      return
+    }
+
+    let ret = rtcEngine?.startScreenCaptureBySourceType(type,{
+      isCaptureWindow: false,
+      displayId: areaScreenSource!.sourceId,
+      regionRect: { width: rect.width, height: rect.height, x: rect.x, y: rect.y },
+      params: {
         dimensions: { width: 1920, height: 1080 },
         bitrate: 1000,
         frameRate: 15,
@@ -521,18 +600,32 @@ const LivePreview: React.FC = () => {
         excludeWindowList: [],
         excludeWindowCount: 0,
       }
-    )
+    })
+    // let ret = rtcEngine?.startScreenCaptureByDisplayId(
+    //   areaScreenSource!.sourceId,
+    //   { width: rect.width, height: rect.height, x: rect.x, y: rect.y },
+    //   {
+    //     dimensions: { width: 1920, height: 1080 },
+    //     bitrate: 1000,
+    //     frameRate: 15,
+    //     captureMouseCursor: false,
+    //     windowFocus: false,
+    //     excludeWindowList: [],
+    //     excludeWindowCount: 0,
+    //   }
+    // )
     console.log('---addScreenAreaSource ret: ',ret)
     if (ret === 0) {
       let existIndex = transCodeSources.current.findIndex((item) => {
-        //return item.source.sourceType === type
-        return item.id === areaScreenSource!.sourceId
+        //区域捕捉的窗口是全屏分享的窗口会Id一致
+        return item.source.sourceType === type
+        //return item.id === areaScreenSource!.sourceId
       })
       if (existIndex < 0) {
         transCodeSources.current.push({
           id: areaScreenSource!.sourceId,
           source: {
-            sourceType: VideoSourceType.VideoSourceScreenPrimary,
+            sourceType: type,
             x: 0,
             y: 0,
             width: init_width,
@@ -541,6 +634,8 @@ const LivePreview: React.FC = () => {
             alpha: 1
           }
         })
+
+        setScreenShareObjStatus(type, true)
       }
       handlePreview()
     } else {
@@ -773,8 +868,14 @@ const LivePreview: React.FC = () => {
 
   const handleSelectCaptureWinSource = (selectCapWin) => {
     console.log('-----handleSelectCaptureWInSource selectCapWin: ', selectCapWin)
-    /*
-    let ret = rtcEngine?.startScreenCaptureBySourceType(VideoSourceType.VideoSourceScreenPrimary, {
+    
+    let type = getShareScreenType();
+    if(type == -1)
+    {
+      return
+    }
+
+    let ret = rtcEngine?.startScreenCaptureBySourceType(type, {
       isCaptureWindow: true,
       windowId: selectCapWin.id,
       params: {
@@ -786,24 +887,24 @@ const LivePreview: React.FC = () => {
         excludeWindowList: [],
         excludeWindowCount: 0,
       }
-    })*/
-    let ret = rtcEngine?.startScreenCaptureByWindowId(
-      selectCapWin.id,
-      { width: 0, height: 0, x: 0, y: 0 },
-      {
-        dimensions: { width: 1920, height: 1080 },
-        bitrate: 1000,
-        frameRate: 15,
-        captureMouseCursor: false,
-        windowFocus: false,
-        excludeWindowList: [],
-        excludeWindowCount: 0,
-      }
-    )
+    })
+    // let ret = rtcEngine?.startScreenCaptureByWindowId(
+    //   selectCapWin.id,
+    //   { width: 0, height: 0, x: 0, y: 0 },
+    //   {
+    //     dimensions: { width: 1920, height: 1080 },
+    //     bitrate: 1000,
+    //     frameRate: 15,
+    //     captureMouseCursor: false,
+    //     windowFocus: false,
+    //     excludeWindowList: [],
+    //     excludeWindowCount: 0,
+    //   }
+    // )
     console.log('------handleSelectCaptureWinSource ret: ',ret)
     if (ret == 0) {
       let newSource = {
-        sourceType: VideoSourceType.VideoSourceScreenPrimary,
+        sourceType: type,
         x: 0,
         y: 0,
         width: init_width,
@@ -821,6 +922,8 @@ const LivePreview: React.FC = () => {
           id: selectCapWin.id,
           source: newSource
         })
+
+        setScreenShareObjStatus(type, true)
       }
       handlePreview()
     } else {
