@@ -59,9 +59,11 @@ const CameraModal: React.FC<IProps> = ({isOpen, deviceIndex, capacityIndex, devi
     }
   }
 
+  /*
   const capInfo = useMemo(()=> {
     return devices[devIndex].capacity
   },[devIndex])
+  */
 
   const handleAdd = () => {
     let confirmData = {
@@ -71,6 +73,8 @@ const CameraModal: React.FC<IProps> = ({isOpen, deviceIndex, capacityIndex, devi
     }
     onOk(confirmData)
   }
+
+  const capInfo = devices[devIndex].capacity
 
   return (
     <Modal
