@@ -129,7 +129,7 @@ const LivePreview: React.FC = () => {
       console.log('-------updateCanvasConfig preview is true')
       setTimeout(() => {
         updateCanvasConfig()
-      }, 500);
+      }, 2000);
     }
   },[isPreview])
 
@@ -744,6 +744,7 @@ const LivePreview: React.FC = () => {
       while (videoRef.current?.firstChild) {
         videoRef.current?.removeChild(videoRef.current?.firstChild);
       }
+      rtcEngine?.stopPreview()
       console.log('--------stop localTranscoder ret: ',ret)
     }
   }
